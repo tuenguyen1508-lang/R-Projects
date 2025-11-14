@@ -1,0 +1,840 @@
+---
+title: "Smart Retail Insights: Driving Growth Through Sales and Satisfaction Analytics-u3260265"
+output: html_document
+date: "2025-04-19"
+student ID: u3260265
+---
+
+**Executive summary**
+
+ This report explores customer purchasing patterns and revenue drivers through a blend of exploratory data analysis (EDA), visual tools, and predictive modeling techniques. It aims to answer important questions such as which product categories generate the highest and lowest sales, how category preferences vary across age groups, and how factors like gender, age, quantity, and price influence revenue. The report also examines monthly sales patterns to identify seasonal peaks and includes a one-year revenue forecast.
+
+ To support the analysis, various methods were applied, including bar charts, pie charts, time series plots, boxplots, correlation analysis, linear regression, decision tree modeling, seasonal naïve forecasting, and residual plots. These tools were used to provide actionable insights for Marry, helping her better understand revenue trends, customer demographics, and satisfaction in order to guide future operational strategies.
+
+ Additional findings revealed that the majority of customers are aged between 32 and 61, with no significant age outliers. Cash on Delivery remains the most preferred payment option, and the gender distribution is nearly even. Quantity strongly correlates with revenue, while age shows little to no impact.
+ 
+ Revenue was chosen as the central variable due to its direct importance to business outcomes. Four different predictive models were developed, and the decision tree model proved to be the most effective. With an R² of 0.93, it delivered the highest accuracy and lowest prediction error, outperforming the baseline model, avoiding overfitting, and showing reliable results across the dataset. Residual analysis further validated its consistency, making the decision tree model a robust choice for forecasting future revenue.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(lubridate)
+library(RColorBrewer)
+library(scales)
+library(corrplot)
+library(zoo)
+library(Metrics)
+library(rpart)
+library(forecast)
+library(knitr)
+library(kableExtra)
+```
+
+**Import dataset**
+
+```{r}
+getwd()
+dataset <- read.csv("retail.csv", header = TRUE, sep = ",")
+dataset
+
+```
+
+
+**Abstract of dataset**
+
+ This dataset is designed to support the analysis of sales performance, revenue trends, and customer satisfaction for a distribution business operating across multiple product categories, including electronics, sports, home & living, books & stationery, and fashion. The study focuses on a one-year period from March 19, 2024, to March 19, 2025, aligning with Marry’s objective to improve her distribution strategies and service quality. The Online Retail & E-Commerce dataset from Kaggle is used as a proxy for real-world data, offering comprehensive variables such as product ID, category, quantity sold, unit price, review scores, and customer demographics (e.g., age and gender). These attributes enable detailed analysis of sales trends, identification of high- and low-performing products, and exploration of the relationship between customer satisfaction and purchasing behavior. The dataset provides a robust foundation for generating actionable insights to optimize operations, enhance customer experience, and drive business growth in a competitive retail environment.
+ 
+ The e-commerce dataset, covering categories like electronics, sports, home & living, books & stationery, and fashion, provides rich insights into product performance and customer preferences. For electronics (e.g., smartphones, tablets, laptops), high-margin and review-sensitive items benefit from bundling strategies and detailed customer feedback analysis. Sports products like soccer balls are seasonal, making flash promotions and age-targeted bundles effective. Home & living items (e.g., tents, pillows, carpets) depend on durability and comfort, so showcasing high-rated products and encouraging image-based reviews can build trust. Books & stationery (e.g., storybooks, notebooks, pens) are low-cost, bundle-friendly products with strong appeal among students and gift buyers. In fashion (e.g., skirts), trends and return rates dominate, requiring accurate sizing tools and seasonal collections. 
+
+ In e-commerce, domain expertise in interpreting quantity and price data is essential for optimizing sales strategies, demand forecasting, and inventory management. Quantity sold reflects product demand and customer preference; high volumes may indicate popular, low-cost items (e.g., pens, notebooks), while low volumes with high prices (e.g., laptops, tablets) suggest premium, less frequently purchased goods. Price drives both perception and conversion—price sensitivity varies by category, with fashion and home goods often influenced by promotions, while electronics show steady value retention. Moreover, evaluating unit economics helps identify profit drivers and underperformers. For instance, a product with moderate quantity but high price and positive reviews (e.g., smartphones) may be a strategic item to promote.
+ 
+**Problem identification**
+
+1. Assess the sales performance across various product categories by identifying which categories generate the highest and lowest total item sales.
+2. Examine revenue patterns using bar charts to pinpoint top category within each age group.
+3. Correlation relationship between revenue and gender, age, product, category, quantity.
+4. Study monthly sales trends to detect peak sales periods and forecast future demand for the next 1 year.
+5. Use a variety of modeling approaches to explore the relationship between the key variable, revenue, and other factors including gender, age, category, price, quantity, and review score.
+
+
+**Show 10 first row of dataset**
+```{r}
+head(dataset, n = 10)
+
+```
+**Show data type of variables**
+
+```{r}
+str(dataset)
+
+```
+
+
+**Description of each variable**
+
+customer_id: An integer representing a unique customer ID, ranging between 10,000 and 99,999.
+
+
+order_date: A date field representing a randomly selected date within the past year.
+
+
+product_id: An integer serving as the product identifier, with values between 100 and 999.
+
+
+category_id: An integer representing the product category, limited to values 10, 20, 30, 40, or 50.
+
+
+category_name: A string indicating the name of the product category, such as Electronics, Fashion, Home & Living, Books & Stationery, or Sports & Outdoors.
+
+
+product_name: A string containing the product’s name, randomly chosen from a list corresponding to its category.
+
+
+quantity: An integer indicating how many units of the product were ordered, ranging from 1 to 5.
+
+
+price: A float representing the unit price of the product, ranging from $10.00 to $500.00 with two decimal places.
+
+
+payment_method: A string denoting the payment method used, which can be Credit Card, Bank Transfer, or Cash on Delivery.
+
+
+city: A string specifying the customer’s city, generated using the Faker library's city() method, depending on the locale.
+
+
+review_score: An integer indicating the customer’s rating of the product, ranging from 1 to 5, or None with a 20% chance.
+
+
+gender: A string indicating the customer’s gender (either 'M' or 'F'), or None with a 10% chance.
+
+
+age: An integer representing the customer's age, ranging from 18 to 75.
+
+**Statistical summary**
+
+ This dataset contains 13 columns which is customer_id, order_date, product_id, category_id, category_name, product_name, quantity, price, payment_method, city, review_score, gender and age. Data description was made by applying statistical summary.
+```{r}
+summary(dataset)
+```
+ Some key observations from the dataset include the quantity of items ordered by customers, which ranges from a minimum of 1 to a maximum of 5, with an average of approximately 3 items per order. The price per order varies between $10.72 and $499.50, with an average value of $251.85. Review scores range from 1 to 5, with an average score of around 4. Notably, 201 customers did not leave a review. The age of customers spans from the youngest at 18 years old to the oldest at 75.
+ 
+**Create month and year columns**
+
+```{r}
+# Convert 'order_date' from character to Date format using month/day/year
+dataset$order_date <- as.Date(dataset$order_date, format = "%m/%d/%Y")
+
+# Add a 'Month' column extracted from 'order_date' in two-digit format (e.g., "03")
+dataset <- dataset %>%
+  mutate(Month = format(as.Date(order_date, format = "%m/%d/%Y"), "%m"), .after = order_date) %>%
+
+  # Add a 'Year' column extracted from 'order_date' (e.g., "2024")
+  mutate(Year = format(as.Date(order_date, format = "%m/%d/%Y"), "%Y"), .after = Month) %>%
+
+  # Create a combined 'Year_Month' column in "YYYY-MM" format
+  mutate(Year_Month = format(as.Date(order_date, format = "%m/%d/%Y"), "%Y-%m")) %>%
+
+  # Convert 'order_date' to quarterly format and add as 'Year_Quarter' column
+  mutate(Year_Quarter = as.Date(as.yearqtr(order_date, format = "%Y-%m-%d")))
+
+# Display the updated dataset with new time-based columns
+print(dataset)
+
+
+```
+**Turn the none-data values in review_score and gender columns into NAs values**
+ 
+ I removed rows containing missing values, which were mainly found in the review_score column (with 20% missing data) and the gender column (with 10% missing data). However, I chose not to completely eliminate all rows with missing values, as doing so could distort the overall analysis of other variables. Instead, for further analysis involving other factors, I retained the dataset and treated the non-data entries in review_score and gender as NA.
+ 
+```{r}
+# Replace all empty string values ("") in the dataset with NA (missing value)
+# This helps standardize missing data for proper analysis
+dataset[dataset == ""] <- NA 
+
+# Identify which columns contain any NA (missing) values
+empty_columns <- dataset %>%
+  summarise(across(everything(), ~ any(is.na(.)))) %>%  # Check for NA in all columns
+  select(where(~ .)) %>%                                # Select only columns that contain at least one NA
+  colnames()                                            # Extract the names of those columns
+
+```
+
+ In cases where I specifically analyze the review_score and gender columns, and wish to exclude any missing data, I will completely remove rows containing NA values in these fields to ensure accuracy and consistency in the results.
+ 
+```{r}
+# Convert empty strings ("") and the string "NA" to actual NA values in all character columns
+df_data_cleaned  <- dataset %>%
+  mutate(across(where(is.character), ~ na_if(.x, ""))) %>%      # Convert "" to NA
+  mutate(across(where(is.character), ~ na_if(.x, "NA")))        # Convert "NA" (as string) to actual NA
+
+# Identify columns that are entirely NA (i.e., all values are missing)
+na_columns <- colnames(df_data_cleaned)[colSums(is.na(df_data_cleaned)) == nrow(df_data_cleaned)]
+
+# Remove those all-NA columns from the dataset
+df_data_cleaned <- df_data_cleaned %>% select(-all_of(na_columns))
+
+# Remove any rows that contain at least one NA value
+df_data_cleaned <- na.omit(df_data_cleaned)
+
+# Display the cleaned dataset
+print(df_data_cleaned)
+
+```
+**Create new variable**
+
+ Upon completing the tasks and addressing the questions below, I recognized that a valuable variable to include in the dataset is "Revenue" (calculated as quantity × price). This variable plays a critical role throughout the analysis, which is why it appears frequently in the tasks and responses. It enables key insights such as gender-based revenue comparisons, identifying top revenue-generating categories by age group, analyzing relationships between revenue and other variables, and forecasting revenue trends over a one-year period.
+
+**Key variable ( aim of model's prediction)**
+ 
+  In this analysis, revenue was selected as the key variable because it directly reflects the financial outcome of customer transactions and serves as a meaningful measure of business performance. It integrates two core components—price and quantity—which are both essential drivers of sales. To understand what influences revenue, various predictors such as gender, age, category, price, quantity, and review score were examined using exploratory data analysis (EDA).  
+
+**Task 1: Payment methods accross each quarter of the year**
+
+ I developed a bar chart to analyze the most commonly used payment methods in each quarter of the year, based on total quantity sold. The chart reveals that Cash on Delivery consistently ranks as the most popular payment method across all year-quarters.
+ 
+```{r}
+# Group by Month and Category to sum the quantity
+monthly_category_orders <- dataset %>%
+  group_by(Year_Quarter, payment_method) %>%
+  summarise(total_quantity = sum(quantity), .groups = 'drop')
+
+# Check unique categories
+unique(monthly_category_orders$payment_method)
+
+# Plot with bold color palette
+ggplot(monthly_category_orders, aes(x = Year_Quarter, y = total_quantity, fill = payment_method)) +
+  geom_col(position = "dodge") +
+  scale_fill_brewer(palette = "Set1") +
+  labs(title = "Payment methods across each quarter of the year",
+       x = "Month", y = "Total Quantity Sold",
+       fill = "Category") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+**Task 2: Outlier analysis using box plot**
+
+ I utilized a box plot to detect outliers in the age distribution of all customers. The box plot helps organize large datasets and visually highlights any outliers (Qlik.com, 2025). This visual helped highlight the central age range and identify any values that fall significantly outside of it. The analysis showed that customer ages span from 18 to 75, with a median age of 48 and an average of 46.64. Using a box plot to identify outliers in customer age offers a clear and efficient way to visualize the distribution and detect unusual values. It highlights the median, interquartile range, and any data points that fall significantly outside the typical range, making it easy to spot potential anomalies. In this case, the box plot confirmed that most customer ages fall between 32 and 61, with no apparent outliers, supporting the reliability of the dataset. This insight helps ensure data integrity and allows for more accurate analysis and modeling by focusing on the core customer group.
+ 
+```{r}
+data_for_modeling <- dataset
+
+boxplot(data_for_modeling$age, main="Box Plot of Customer Age", ylab="Age")
+# Add points to see the distribution better (optional)
+stripchart(data_for_modeling$age, method = "jitter", pch = 19, add = TRUE, col = "steelblue", vertical=TRUE)
+summary(data_for_modeling$age)
+Q1_age <- quantile(data_for_modeling$age, 0.25, na.rm = TRUE)
+Q3_age <- quantile(data_for_modeling$age, 0.75, na.rm = TRUE)
+IQR_age <- Q3_age - Q1_age
+
+lower_bound_age <- Q1_age - 1.5 * IQR_age
+upper_bound_age <- Q3_age + 1.5 * IQR_age
+
+print(paste("Lower Age Bound (1.5*IQR):", lower_bound_age))
+print(paste("Upper Age Bound (1.5*IQR):", upper_bound_age))
+
+# Find which values fall outside these bounds
+age_outliers <- data_for_modeling$age[data_for_modeling$age < lower_bound_age | data_for_modeling$age > upper_bound_age]
+print("Potential Age Outliers based on IQR rule:")
+print(age_outliers)
+```
+
+
+**Task 3: Distribution of review score**
+
+ Bar charts offer several advantages when presenting data. They allow for quick and easy comparison of relative numbers or proportions across multiple categories. By summarizing large datasets in a visual format, bar charts make complex information more accessible and easier to understand. Additionally, they enable viewers to estimate key values at a glance, which aids in fast decision-making and data interpretation (Geographyfieldwork.com, 2025).
+
+ I used a bar plot to identify the most and least common review scores given by customers. The analysis shows that over 300 customers gave a top rating of 5, making it the most frequent score, while a rating of 2 was the least common, with fewer than 50 customers selecting it. This suggests that the products and services Marry offers are well-received, reflecting strong quality and a high level of customer satisfaction in the marketplace. Besides, 201 customers did not leave a feedback after purchasing.
+ 
+```{r}
+# Count the frequency of each review score, including NA values
+score_table <- table(data_for_modeling$review_score, useNA = "ifany")  # Show NAs too
+
+# Print frequency table
+print("Frequency of each Review Score:")
+print(score_table)
+
+# (Redundant print, can be kept for clarity or removed)
+print("Frequency of each Review Score:")
+print(score_table)
+
+# Calculate the proportion (percentage) of each review score
+score_proportions <- prop.table(table(data_for_modeling$review_score))  # Relative frequencies
+print("Proportion of each Review Score:")
+print(round(score_proportions * 100, 2))  # Convert to percentage and round to 2 decimal places
+
+# Create a bar plot showing the frequency distribution of review scores
+barplot(score_table,
+        main = "Distribution of Review Scores",
+        xlab = "Review Score",
+        ylab = "Frequency")
+
+# Calculate the interquartile range (IQR) for review scores
+# Note: This is more useful for continuous numeric variables — use with caution for ordinal or discrete scores
+Q1_score <- quantile(data_for_modeling$review_score, 0.25, na.rm = TRUE)
+Q3_score <- quantile(data_for_modeling$review_score, 0.75, na.rm = TRUE)
+IQR_score <- Q3_score - Q1_score
+
+# Calculate bounds for detecting potential outliers using 1.5*IQR rule
+lower_bound_score <- Q1_score - 1.5 * IQR_score
+upper_bound_score <- Q3_score + 1.5 * IQR_score
+
+# Print the IQR-based lower and upper bounds
+print(paste("Lower Score Bound (1.5*IQR):", lower_bound_score))
+print(paste("Upper Score Bound (1.5*IQR):", upper_bound_score))
+
+# Identify potential outliers in review scores using the IQR rule
+score_outliers <- data_for_modeling$review_score[
+  data_for_modeling$review_score < lower_bound_score |
+  data_for_modeling$review_score > upper_bound_score
+]
+
+# Print the potential outliers and their count (note: interpretation depends on score type)
+print("Potential Score 'Outliers' based on IQR rule (Use with Caution):")
+print(score_outliers)
+print(paste("Number of potential 'outliers' by IQR:", length(score_outliers)))
+
+```
+**Task 4: Encode product_name and gender columns**
+ I encoded product_name and gender columns in case I need to analyse numerical variables.
+ 
+```{r}
+
+# Encode the 'product_name' column as numeric by converting it to a factor first
+# Each unique product name is assigned a unique integer value
+dataset$product_name_encoded <- as.numeric(factor(dataset$product_name))
+
+# Encode the 'gender' column as numeric in the same way
+
+dataset$gender_encoded <- as.numeric(factor(dataset$gender))
+
+```
+
+**Task 5: Monthly total sales over time**
+ 
+ I generated a time series line plot to display the total sales for each month. A time series is a sequence of data points arranged in chronological order, used to detect patterns or trends over time (Emery, 2021). The lowest sales were recorded in March 2024, while the highest occurred in December 2024. This suggests that customers tend to shop more towards the end of the year than at the beginning. Following December, sales fluctuated and started to decline.
+ 
+```{r}
+# Ensure Year and Month are numeric
+dataset$Year <- as.numeric(as.character(dataset$Year))
+dataset$Month <- as.numeric(as.character(dataset$Month))
+
+# Remove rows with missing Month or Year
+dataset <- dataset %>% filter(!is.na(Year), !is.na(Month))
+
+# Construct YearMonth safely (e.g., "2023-04-01")
+dataset$YearMonth <- as.Date(sprintf("%04d-%02d-01", dataset$Year, dataset$Month), format = "%Y-%m-%d")
+
+# Aggregate sales by month
+monthly_sales <- dataset %>%
+  group_by(YearMonth) %>%
+  summarise(TotalSales = sum(price, na.rm = TRUE)) %>%
+  arrange(YearMonth)
+
+# Plot time series
+ggplot(monthly_sales, aes(x = YearMonth, y = TotalSales)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "darkred", size = 2) +
+  labs(title = "Monthly Total Sales Over Time",
+       x = "Month",
+       y = "Total Sales") +
+  theme_minimal() +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+**Task 6: Gender-based revenue comparison of top 10 products**
+
+ I developed a bar chart to compare the top 10 revenue-generating products between male and female customers. The top products include headphones, laptops, notebooks, pants, smartphones, smartwatches, soccer balls, T-shirts, tablets, and yoga mats. Interestingly, the yoga mat—typically expected to be more popular among female buyers—was actually purchased more by males, which was an unexpected finding.
+ 
+```{r}
+# Identify top 10 products by total revenue
+top10_product_tmp <- df_data_cleaned %>%
+  mutate(
+    revenue = quantity * price  # Calculate revenue for each transaction
+  ) %>%
+  group_by(product_name) %>%  # Group by product
+  summarise(total_revenue = sum(revenue), .groups = 'drop') %>%  # Sum revenue per product
+  arrange(desc(total_revenue)) %>%  # Sort in descending order of revenue
+  slice(1:10) %>%  # Select the top 10 highest revenue-generating products
+  select(product_name)  # Keep only the product name column for filtering
+
+# Calculate total revenue per product-gender combination
+top10_product <- df_data_cleaned %>%
+  mutate(
+    revenue = quantity * price  # Recalculate revenue
+  ) %>%
+  group_by(product_name, gender) %>%  # Group by both product and gender
+  summarise(total_revenue = sum(revenue), .groups = 'drop')  # Sum revenue
+
+# Filter the grouped data to only include the top 10 products
+top10_product <- merge(top10_product, top10_product_tmp, by = "product_name")
+
+# Create a bar chart to show revenue by product and gender
+bar_chart_top10_product <- ggplot(top10_product,
+                                 aes(x = product_name,          # Product names on x-axis
+                                     y = total_revenue,         # Total revenue on y-axis
+                                     fill = gender)) +          # Fill bars by gender
+  geom_col(position = "dodge", color = "black") +               # Use side-by-side bars with black border
+  scale_y_continuous(labels = scales::dollar_format()) +       # Format y-axis labels as currency
+  theme_minimal(base_size = 12) +                               # Apply a clean, minimalist theme
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),          # Rotate x-axis labels for better readability
+    plot.title = element_text(hjust = 0.5),                     # Center the title (if added)
+    legend.position = "top"                                     # Position the legend above the plot
+  )
+
+# Display the plot
+print(bar_chart_top10_product)
+
+```
+
+**Task 7: Percentage of male and female customers**
+
+ I created a pie chart showing the percentage of male and female customers who placed orders from Marry. The distribution is nearly equal, with females making up 50.7% and males slightly less at 49.3%. This analysis includes only customers who specified their gender as male or female, excluding any missing (NA) values.
+ 
+```{r}
+# Create a new data frame 'revenue_gender' by processing 'df_data_cleaned'
+revenue_gender <- df_data_cleaned %>%
+
+  # Calculate revenue for each row as quantity multiplied by price
+  mutate(
+    revenue = quantity * price
+  ) %>%
+
+  # Group data by gender
+  group_by(gender) %>%
+
+  # Summarize total revenue per gender
+  summarise(total_revenue = sum(revenue)) %>%
+
+  # Calculate the percentage share of revenue for each gender
+  mutate(perc = total_revenue / sum(total_revenue)) %>%
+
+  # Sort the data by percentage (ascending order)
+  arrange(perc) %>%
+
+  # Create percentage labels for plotting (e.g., "50%")
+  mutate(labels = percent(perc))
+# Generate a pie chart using ggplot2
+ggplot(revenue_gender, aes(x = "", y = perc, fill = gender)) +
+  
+  # Create the bars for the pie chart (initially as stacked columns)
+  geom_col() +
+  
+  # Add text labels (percentage) to each section of the pie
+  geom_text(aes(label = labels),
+            position = position_stack(vjust = 0.5)) +
+  
+  # Convert the stacked bar chart into a pie chart
+  coord_polar(theta = "y")
+
+```
+
+
+**Question 1: Top and bottom selling product categories**
+
+ I also examined the total quantity sold across different categories. Category 10, representing electronics, saw the highest sales with 648 items sold. Meanwhile Category 40 representing books & stationery saw the lowest sales with 547 items.
+ 
+```{r}
+# Calculate total quantity sold per category
+category_sales_summary <- dataset %>%
+  group_by(category_id) %>%
+  summarise(
+    total_quantity_sold = sum(quantity, na.rm = TRUE) # Sum quantities, ignore NAs if any
+  ) %>%
+  arrange(desc(total_quantity_sold)) # Arrange from highest to lowest sales
+
+# Display the summary table
+print("Total Items Sold per Category (Sorted):")
+print(category_sales_summary)
+```
+ I created the bar chart total items sold per category to assess the sales performance across various product categories by identifying which categories generate the highest and lowest total item sales.
+ 
+```{r}
+# Create the bar chart using ggplot2
+sales_plot <- ggplot(category_sales_summary,
+                     # Use reorder to sort bars by total_quantity_sold
+                     aes(x = reorder(category_id, -total_quantity_sold),
+                         y = total_quantity_sold)) +
+  geom_bar(stat = "identity", fill = "skyblue3", alpha = 0.8) + # Create the bars
+  geom_text(aes(label = comma(total_quantity_sold)), # Add labels on top of bars
+            vjust = -0.5, size = 3.5, color = "black") +
+  scale_y_continuous(labels = comma) + # Format y-axis labels with commas
+  labs(
+    title = "Total Items Sold per Product Category",
+    subtitle = "Sorted from Highest to Lowest Sales",
+    x = "Product Category ID",
+    y = "Total Quantity Sold"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels if they overlap
+    plot.title = element_text(hjust = 0.5, face = "bold"), # Center title
+    plot.subtitle = element_text(hjust = 0.5)
+   )
+
+# Print the plot
+print(sales_plot)
+```
+**Question 2: Top revenue-generating category by different age groups**
+
+ I analyzed which product categories generated the highest revenue within each age group. For ages 18–24 (young adults), purchasing behavior is often influenced by student life or early career needs. Those aged 25–34 are typically establishing careers or families, often spending more on home goods and apparel. The 35–44 and 45–54 age groups, representing mid-adulthood and peak career stages, tend to have higher purchasing power with a focus on family-oriented products. Consumers aged 55–64, nearing retirement or with grown children, may shift spending toward travel and hobbies. Lastly, the 65–75 age group, representing retirees, often prioritize health, comfort, and leisure-related products.
+ 
+
+ I designed a bar chart to depict purchasing trends across various age groups. The 18–24 demographic predominantly spends on books and stationery (around $20,000), which aligns with their student lifestyle. Those aged 25–34 also favor this category ( around $30,000- also the largest revenue generated among all categories), likely due to ongoing academic or professional pursuits. The 35–44 age group tends to prioritize electronics, possibly to support work or enhance their lifestyle. Shoppers aged 45–54 gravitate toward home and living products, likely reflecting household-focused purchases. Meanwhile, individuals aged 55–64 show a preference for electronics and sports & outdoor items, suggesting a shift toward leisure and health as they approach retirement. Lastly, the 65–75 age group—who may be fully retired and enjoying leisure—tends to favor electronics and fashion products.
+
+
+
+```{r}
+# Define age group breakpoints and corresponding labels
+age_breaks <- c(17, 24, 34, 44, 54, 64, 75)  # Breakpoints: groups like 18–24, 25–34, ..., 65–75
+age_labels <- c("18-24", "25-34", "35-44", "45-54", "55-64", "65-75")  # Corresponding labels
+
+# Create age group variable and compute revenue for each row
+revenue_category_age <- dataset %>%
+  mutate(
+    age_group = cut(age, breaks = age_breaks, labels = age_labels, right = TRUE, include.lowest = TRUE),  # Categorize age
+    revenue = quantity * price  # Calculate revenue per transaction
+  )
+
+# Group by category and age group, then summarize total revenue
+revenue_category_age <- revenue_category_age %>%
+  group_by(category_name, age_group) %>%
+  summarise(total_revenue = sum(revenue), .groups = 'drop')  # Summarize revenue per group
+
+# Convert category_name to factor for proper grouping and coloring in the plot
+revenue_category_age$category_name_factor <- as.factor(revenue_category_age$category_name)
+
+# Create a grouped bar chart showing revenue by category and age group
+bar_chart_top_category <- ggplot(revenue_category_age,
+                                 aes(x = age_group,                 # X-axis: Age groups
+                                     y = total_revenue,             # Y-axis: Revenue
+                                     fill = category_name_factor)) +  # Fill bars by category
+  geom_col(position = "dodge", color = "black") +                    # Side-by-side bars with black borders
+  scale_y_continuous(labels = scales::dollar_format()) +            # Format Y-axis as currency
+  scale_fill_viridis_d(option = "D") +                               # Use colorblind-friendly viridis palette
+  labs(
+    title = "Top Revenue-Generating Category by Age Group",          # Plot title
+    x = "Age Group",
+    y = "Total Revenue from Top Category",
+    fill = "Top Category ID"                                         # Legend title
+  ) +
+  theme_minimal(base_size = 12) +                                    # Clean minimal theme with readable font size
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),               # Rotate x-axis text for readability
+    plot.title = element_text(hjust = 0.5),                          # Center the plot title
+    legend.position = "top"                                          # Place legend above the plot
+  )
+
+# Display the plot
+print(bar_chart_top_category)
+
+```
+
+**Question 3: Correlation relationship between revenue and gender, age, product, category, quantity**
+
+ The benefit of using the correlation method is its ability to assist researchers in forecasting future behavior. By uncovering a connection between two variables, researchers can use that relationship to predict how alterations in one variable might influence the other (Anon, 2024).
+
+ The quantity variable shows a strong positive correlation with revenue (0.61), which is expected given that revenue is calculated as quantity multiplied by price. The product variable has a very weak positive correlation (0.04), indicating that product type has minimal direct impact on total revenue after encoding. Both category and gender exhibit weak negative correlations with revenue (-0.05 and -0.03, respectively), while age demonstrates virtually no correlation, suggesting it has no significant relationship with revenue.
+ 
+```{r}
+# Start from the cleaned dataset and encode necessary variables for correlation analysis
+df_data_cleaned <- df_data_cleaned %>%
+  mutate(
+    quantity_encoded = as.numeric(factor(quantity)),          # Encode quantity as a numeric factor
+    gender_encoded = as.numeric(factor(gender)),              # Encode gender as numeric (e.g., Male = 1, Female = 2)
+    age_encoded = as.numeric(factor(age)),                    # Encode age as numeric (for consistency in correlation)
+    review_encoded = as.numeric(factor(review_score)),        # Encode review_score as numeric
+    category_encoded = as.numeric(factor(category_id)),       # Encode category_id as numeric
+    product_encoded = as.numeric(factor(product_name)),       # Encode product_name as numeric
+    revenue = quantity * price                                # Calculate revenue
+  )
+
+# Select relevant encoded variables and revenue for correlation analysis
+df_cor <- df_data_cleaned %>%
+  select(revenue, product_encoded, quantity_encoded, gender_encoded, age_encoded, category_encoded)
+
+# Generate a correlation plot (heatmap with numbers) to show relationships between variables
+corrplot(cor(df_cor),                       # Compute and plot correlation matrix
+         method = "number",                 # Show correlation coefficients as numbers
+         order = "hclust",                  # Cluster similar variables together for easier interpretation
+         col = brewer.pal(n = 8, name = "RdYlBu"))  # Use a diverging color palette for visual effect
+
+
+```
+**Question 4: 1-Year forecast of revenue trend**
+ 
+ Seasonal naïve forecasting helps improve prediction accuracy for products with distinct seasonal trends by factoring in expected seasonal fluctuations (Launch Fulfillment, 2024).
+
+ I applied a Seasonal Naive Model to forecast revenue trends over a one-year horizon, based on historical sales data spanning from March 19, 2024, to March 19, 2025—during which revenue typically peaked around August and December 2024. The projection suggests that revenue may again reach peak levels of approximately $8,000, occurring around the fifth and ninth months of the forecasted year.
+ 
+```{r}
+
+# Prepare date and revenue columns
+dataset <- dataset %>%
+  mutate(
+    order_date = as.Date(order_date, format = "%m/%d/%Y"),      # Convert order_date from character to Date
+    YearMonth = format(order_date, "%Y-%m"),                    # Extract Year-Month as a string (e.g., "2024-03")
+    revenue = price * quantity                                  # Calculate revenue per transaction
+  )
+
+# Aggregate monthly revenue by YearMonth
+monthly_revenue <- dataset %>%
+  group_by(YearMonth) %>%
+  summarise(total_revenue = sum(revenue), .groups = "drop")     # Sum revenue for each month
+
+# Convert YearMonth string to proper Date object (first of the month)
+monthly_revenue$YearMonth <- as.Date(paste0(monthly_revenue$YearMonth, "-01"))
+
+# Create a time series object with monthly frequency
+ts_revenue <- ts(monthly_revenue$total_revenue, frequency = 12)
+
+# Fit a seasonal naive forecast model for the next 12 months
+fit_snaive <- snaive(ts_revenue, h = 12)
+print(summary(fit_snaive))  # Display forecast summary
+
+# Plot the forecast
+plot(fit_snaive,
+     main = "1-Year Revenue Forecast Using Seasonal Naive Model",  # Chart title
+     xlab = "Time (Months)",                                       # X-axis label
+     ylab = "Monthly Revenue",                                     # Y-axis label
+     col = "blue")                                                 # Line color
+
+
+```
+
+**Question 5: Explore the relationship between the key variable, revenue, and other factors including gender, age, category, price, quantity, and review score**
+
+ Relevant features were selected, and the data was then split into training (80%) and testing (20%) sets using a fixed random seed for reproducibility.
+
+```{r}
+# Add revenue-related columns to the cleaned dataset
+df_data_cleaned <- df_data_cleaned %>%
+  mutate(
+    revenue = price * quantity,              # Calculate revenue for each transaction
+    log_revenue = log(revenue + 1)           # Compute log-transformed revenue (add 1 to avoid log(0))
+  )
+
+# Select relevant columns for modeling
+data_model <- df_data_cleaned %>%
+  select(
+    revenue,                                 # Target variable
+    age, gender,                             # Demographic features
+    quantity, price,                         # Transactional features
+    product_encoded,                         # Encoded product name
+    review_score, category_name,             # Additional product/customer features
+    log_revenue                              # Transformed target variable for alternate modeling
+  )
+
+# Split the data into training (80%) and testing (20%) sets
+set.seed(123)                                # Set seed for reproducibility
+train_index <- sample(nrow(data_model), 0.8 * nrow(data_model))  # Randomly select 80% of the rows
+
+train_data <- data_model[train_index, ]      # Training dataset
+test_data  <- data_model[-train_index, ]     # Testing dataset
+
+
+```
+
+
+ The first model serves as a simple baseline to assess how well core predictors such as quantity, price, review score, gender, and age explain revenue. It uses a linear approach to evaluate the direct influence of these features, offering a quick benchmark for comparison with more complex models (GeeksforGeeks, 2020). However, the model assumes linear relationships between variables and revenue, which limits its ability to detect interactions or capture nonlinear patterns in the data.
+
+```{r}
+
+# Fit a baseline linear regression model
+# Predict revenue using quantity, price, review score, gender, and age as predictors
+model1 <- lm(revenue ~ quantity + price + review_score + gender + age, data = train_data)
+
+# Display a summary of the model
+# This includes coefficients, R-squared, p-values, and other model diagnostics
+summary(model1)
+
+```
+
+ This interaction model aims to account for the differing impacts that product types or categories have on revenue. By including an interaction term between quantity and category, it reflects that purchasing multiple units of one product (e.g., books) does not have the same revenue implication as purchasing the same quantity of another (e.g., electronics). The model structure, revenue ~ quantity, category name + age + gender, allows for these nuanced differences to be captured. This approach improves upon simpler models by incorporating the interaction effect, enabling a more accurate representation of how product category influences revenue outcomes through quantity.
+
+
+```{r}
+# Fit an interaction linear regression model
+# This model includes an interaction term between quantity and category_name,allowing the effect of quantity on revenue to vary by category
+model2 <- lm(revenue ~ quantity * category_name + age + gender, data = train_data)
+
+# Display the model summary
+# Provides details such as coefficients, significance levels, and overall fit (R²)
+summary(model2)
+
+```
+
+ The decision tree model is designed for non-linear modeling and offers high interpretability by identifying decision rules and thresholds. This model is well-suited for capturing complex relationships and interactions through hierarchical splits, and it performs well even with skewed or irregular data distributions. Unlike linear models, it does not rely on assumptions of linearity or normality, making it a flexible and robust alternative for modeling revenue.
+
+
+
+```{r}
+
+# Fit a decision tree regression model using the 'rpart' package
+# The model predicts revenue based on quantity, price, category, age, and gender
+# 'method = "anova"' specifies that this is a regression tree (for continuous target)
+tree_model <- rpart(revenue ~ quantity + price + category_name + age + gender,
+                    data = train_data,
+                    method = "anova")
+
+# Print a summary of the tree model
+# This shows the splits, node statistics, and variable importance
+summary(tree_model)
+
+```
+
+ This log model addresses the issue of right-skewness in revenue by applying a log transformation to the target variable. It helps to stabilize variance and reduce the influence of extreme values or outliers commonly found in revenue data. The transformation improves model performance by making the distribution of the dependent variable more symmetric, which can lead to better fit and more reliable predictions, especially in models sensitive to non-normality.
+
+```{r}
+# Fit a linear regression model using log-transformed revenue as the target
+# This helps handle skewness in revenue and stabilize variance across predictions
+log_model <- lm(log_revenue ~ quantity + price + category_name + gender + age, data = train_data)
+
+# Display the model summary
+# Includes coefficients, R², and diagnostic statistics for evaluating model fit
+summary(log_model)
+
+```
+
+ So the next step, I would evaluate all 4 models based on their RMSE, MAE and R-squared values. Root Mean Squared Error (RMSE) indicates the average magnitude of prediction errors, with lower values reflecting better accuracy. Mean Absolute Error (MAE) also measures average error size but ignores direction, making it less affected by extreme values compared to RMSE. R-squared (R²) represents the proportion of variance in the target variable explained by the model; values closer to 1 indicate strong explanatory power, while negative values suggest the model performs worse than simply predicting the mean (FARSHAD K, 2024).
+
+  Four predictive models were developed and assessed using RMSE, MAE, and R² metrics. The baseline linear regression model offered a solid starting point with an R² of 0.89, demonstrating that key predictors like quantity and price effectively explained revenue. However, the decision tree model significantly improved upon this by achieving a lower RMSE (152.86 vs 189.49), lower MAE (117.52 vs 141.77), and a higher R² of 0.93, indicating a better overall fit and more accurate predictions. This improvement is attributed to the decision tree’s ability to automatically capture non-linear relationships and interactions that the baseline linear model could not.
+ 
+ In contrast, the interaction model, which explicitly introduced interaction terms, performed poorly (R² = 0.38), likely due to overfitting or introducing irrelevant complexity. The log-transformed model failed altogether, with a negative R² (-1.75), highlighting issues with misalignment between transformation and model evaluation, and the risk of distortion in target scaling. The decision tree model avoids both pitfalls: it maintains high interpretability while managing data variability without manual transformation or overly complex term structures.
+ 
+ The decision tree not only improves upon the baseline but also offers a robust, flexible, and reliable solution without succumbing to the limitations seen in the other models.
+
+
+```{r}
+# Define a function to evaluate a model's performance on the test dataset
+evaluate_model <- function(model, test_data, target = "revenue") {
+  preds <- predict(model, newdata = test_data)                 # Generate predictions using the test data
+  actual <- test_data[[target]]                                # Extract actual target values (default: revenue)
+  
+  # Calculate performance metrics
+  rmse <- sqrt(mean((actual - preds)^2))                       # Root Mean Squared Error
+  mae  <- mean(abs(actual - preds))                            # Mean Absolute Error
+  r2   <- 1 - sum((actual - preds)^2) / sum((actual - mean(actual))^2)  # R-squared (goodness of fit)
+  
+  # Return the metrics as a data frame
+  data.frame(RMSE = rmse, MAE = mae, R2 = r2)
+}
+
+# Evaluate all four models and compile the results into one data frame
+results <- dplyr::bind_rows(
+  cbind(Model = "Baseline model",     evaluate_model(model1, test_data)),     # Linear model
+  cbind(Model = "Interaction model",  evaluate_model(model2, test_data)),     # Model with interaction term
+  cbind(Model = "Decision model",     evaluate_model(tree_model, test_data)), # Decision tree model
+  cbind(Model = "Log model",          evaluate_model(log_model, test_data))   # Log-transformed model
+)
+
+# Print the comparison of model performance metrics
+print(results)
+
+
+```
+
+ I chose the decision tree model to predict and interpret predictions using residuals plot. The residual plot for the decision tree model demonstrates that the model performs well in predicting revenue across most of the dataset. Residuals, which represent the difference between actual and predicted values, are generally centered around zero, indicating that the model does not suffer from systematic overprediction or underprediction. Most predictions, particularly in the low to mid-range of predicted revenue, are tightly clustered around the red dashed line, suggesting high accuracy in these regions. Additionally, the symmetrical and random spread of residuals implies that the model captures the underlying patterns in the data effectively, without leaving significant nonlinear trends unmodeled.
+
+ However, there is a noticeable increase in residual spread as predicted revenue increases. This widening dispersion indicates that the model’s predictions become less consistent for high-value transactions. In these cases, the model tends to be less precise, which could be due to fewer high-revenue examples in the training data or the presence of outliers. Despite this, the model still maintains an overall strong predictive performance, and the absence of any distinct residual pattern confirms its robustness.
+
+
+```{r}
+# Predict revenue on the test dataset using the trained decision tree model
+tree_predictions <- predict(tree_model, newdata = test_data)
+
+# Calculate residuals (differences between actual and predicted values)
+residuals <- test_data$revenue - tree_predictions
+
+# Create a new data frame containing actual values, predicted values, and residuals
+results <- data.frame(
+  Actual = test_data$revenue,         # Actual revenue values
+  Predicted = tree_predictions,       # Predicted revenue from the model
+  Residuals = residuals               # Difference: Actual - Predicted
+)
+
+# Plot the residuals to evaluate model performance
+# This helps identify bias, variance, or patterns that suggest model limitations
+ggplot(results, aes(x = Predicted, y = Residuals)) +
+  geom_point(alpha = 0.6) +                                      # Plot residuals as semi-transparent points
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +  # Add horizontal line at 0 to guide residual symmetry
+  labs(
+    title = "Residual Plot: Decision Tree",                      # Plot title
+    x = "Predicted Revenue",                                     # X-axis label
+    y = "Residuals (Actual - Predicted)"                         # Y-axis label
+  ) +
+  theme_minimal()                                                # Use a clean and modern theme
+
+
+```
+**Recommendations & Conclusions**
+
+ I created a table for the key findings and methods utilized.
+ 
+```{r}
+# Create a data frame for the comparison
+comparison_data <- data.frame(
+  `Key findings` = c(
+    "Category 10 (Electronics) recorded the highest item sales, while Category 40 (Books & Stationery) had the lowest.",
+    "Younger customers tend to prefer books, whereas older customers are more likely to buy electronics and home-related items.",
+    "Quantity is the most influential factor affecting revenue, while age, gender, and category had minimal impact.",
+    "Revenue was forecasted to peak at approximately $8,000 during the 5th and 9th months of the upcoming year.",
+    "Most customers are aged between 32 and 61, with no significant outliers.",
+    "Gender distribution is nearly evenly split.",
+    "Cash on Delivery is the most frequently used payment method."
+  ),
+  `Methods` = c(
+    "Bar chart",
+    "Bar chart",
+    "Correlation analysis",
+    "Seasonal naive model",
+    "Box-plot",
+    "Pie chart",
+    "Bar chart"
+  ),
+  stringsAsFactors = FALSE
+)
+
+# Print the comparison table
+kable(comparison_data, "html", caption = "Summary of Key Findings and Methods Used") %>%
+  kable_styling(full_width = FALSE, position = "center")
+
+```
+
+ To predict revenue, four models were trained and tested. The baseline linear regression showed strong performance (R² = 0.89), but the decision tree model outperformed it significantly, achieving lower RMSE and MAE ( 152.84 and 117.52) and a higher R² of 0.93. This model effectively captured non-linear relationships and variable interactions that linear models could not. In contrast, the interaction model underperformed due to complexity and overfitting, while the log-transformed model failed entirely due to scaling issues. The decision tree was chosen as the final model. Residual analysis showed accurate and unbiased predictions overall, with slight variability in high-revenue cases. Despite this, the model remains robust and reliable. For future enhancement, ensemble methods like Random Forest could be considered.
+ 
+ To further enhance this analysis, several improvements could be made in future work. First, incorporating a larger and more diverse dataset—such as including additional product categories, regional data, or longer time periods—would improve model generalizability and provide deeper insights into customer behavior. Second, while the decision tree model performed well, experimenting with ensemble methods such as Random Forest could improve predictive accuracy, particularly for high-revenue transactions where variability was observed in the residuals (GeeksforGeeks, 2024). Third, incorporating additional features such as promotional activity, customer loyalty level, or product return rates could uncover more nuanced revenue drivers. These improvements would contribute to more precise predictions and a deeper understanding of revenue dynamics.
+
+
+**Reference**
+
+1. Online Retail and E-Commerce Dataset: https://www.kaggle.com/datasets/ertugrulesol/online-retail-data?resource=download
+
+2. Qlik.com (2025) Box plot | Qlik Cloud Help. Available at: https://help.qlik.com/en-US/cloud-services/Subsystems/Hub/Content/Sense_Hub/Visualizations/BoxPlot/box-plot.htm#:~:text=Advantages%3A%20The%20box%20plot%20organizes,summary%20of%20the%20data%20distribution. (Accessed: 4 May 2025).
+
+3. Geographyfieldwork.com (2025) Data Presentation: Bar Charts Advantages and Disadvantages. Available at: https://geographyfieldwork.com/DataPresentationBarCharts.htm (Accessed: 4 May 2025).
+
+4. Emery, J (2021) 3 Advantages to Time Series Analysis and Forecasting. Available at: https://www.phdata.io/blog/3-advantages-to-time-series-analysis-and-forecasting/ (Accessed: 4 May 2025).
+
+5. Anon, (2024) What are the advantages of using a correlation method in psychological research? | TutorChase. Available at: https://www.tutorchase.com/answers/a-level/psychology/what-are-the-advantages-of-using-a-correlation-method-in (Accessed: 4 May 2025).
+
+6. Launch Fulfillment (2024) 7 Powerful Benefits Of Naive Forecasting In Inventory Management. Available at: https://www.launchfulfillment.com/inventory-management-naive-forecasting/#:~:text=Flexibility%20and%20Adaptability%3A%20Seasonal%20na%C3%AFve,products%20with%20clear%20seasonal%20patterns. (Accessed: 4 May 2025).
+
+7. GeeksforGeeks (2020) ML Advantages and Disadvantages of Linear Regression. Available at: https://www.geeksforgeeks.org/ml-advantages-and-disadvantages-of-linear-regression/ (Accessed: 4 May 2025).
+
+8. scikit-learn (2025) 1.10. Decision Trees. Available at: https://scikit-learn.org/stable/modules/tree.html (Accessed: 4 May 2025).
+
+9. FARSHAD K (2024) Essential Regression Evaluation Metrics: MSE, RMSE, MAE, R2, and Adjusted R2. Available at: https://farshadabdulazeez.medium.com/essential-regression-evaluation-metrics-mse-rmse-mae-r%C2%B2-and-adjusted-r%C2%B2-0600daa1c03a (Accessed: 4 May 2025).
+
+10. GeeksforGeeks (2024) Random Forest Algorithm in Machine Learning. Available at: https://www.geeksforgeeks.org/random-forest-algorithm-in-machine-learning/ (Accessed: 4 May 2025).
+
+
+
