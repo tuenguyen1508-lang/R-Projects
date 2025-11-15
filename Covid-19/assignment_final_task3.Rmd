@@ -1,0 +1,258 @@
+---
+title: "Final Assignment, Task 3"
+author: "Tue Minh Nguyen"
+date: "22/10/2024"
+output: html_document
+Author ID: u3260265
+---
+## Task 3 description
+ Task 3 focuses on analyzing the COVID-19 dataset to investigate the relationship between cumulative cases and various economic and demographic factors. The main objectives are to create a correlation matrix, implement linear regression models, and explore alternative regression models for predicting cumulative COVID-19 cases. Specific tasks include data preparation, correlation analysis, data visualization, data splitting, and model training and evaluation. By developing these predictive models, we aim to identify the factors most closely associated with cumulative cases, informing health and economic policy decisions. Ultimately, this task seeks to evaluate the effectiveness of different regression models and provide a comparative analysis of their performance, contributing valuable insights for future research on the impact of economic factors on public health outcomes.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Check and install required packages if not already installed
+if (!require(tibble)) {
+    install.packages("tibble")
+}
+if (!require(kableExtra)) {
+    install.packages("kableExtra")
+}
+if (!require(dplyr)) {
+    install.packages("dplyr")
+}
+if (!require(ggcorrplot)) {
+    install.packages("ggcorrplot")
+}
+if (!require(Metrics)) {
+    install.packages("Metrics")
+}
+if (!require(rpart)) {
+    install.packages("rpart")
+}
+if (!require(knitr)) {
+    install.packages("knitr")
+}
+
+# Load the libraries
+library(tibble)
+library(kableExtra)
+library(dplyr)
+library(ggcorrplot)
+library(Metrics)
+library(rpart)
+library(knitr)
+
+covid19_data <- read.csv("~/data/covid19_data.csv")
+```
+
+# Task 3: Data-Driven Modelling:
+
+1. Based on the covid19_data dataframe, that you have wrangled and used in the previous tasks, create a separate dataframe named "cor_data" with the data of these variables (CumCases, CumTests, Population, GDP, GDPCapita) variables.
+
+    
+```{r}
+
+# Create a new dataframe 'cor_data' by selecting specific columns from 'covid19_data'
+cor_data <- covid19_data %>%
+  select(CumCases, CumTests, Population, GDP, GDPCapita) # The 'select' function extracts the specified columns: CumCases, CumTests, Population, GDP, and GDPCapita.
+
+# Display the 'cor_data' dataframe
+cor_data
+
+```
+
+2. Compute the correlation matrix between the variables of the “cor_data” and visualise this correlation matrix.
+
+```{r}
+# Calculate the correlation matrix
+cor_matrix <- cor(cor_data, use = "complete.obs") # The 'use = "complete.obs"' argument ensures that only complete observations (rows without missing values) are used in the calculation.
+
+# Visualize the correlation matrix
+ggcorrplot(cor_matrix, lab = TRUE, title = "Correlation Matrix of cor_data Variables")
+
+```
+
+3. visualize the distribution of the cumulative cases in the cor_data with and without changing the scale of the x axis to log transformation.
+
+```{r}
+# Plot without log transformation
+ggplot(cor_data, aes(x = CumCases)) +  # Initialize a ggplot object using the 'cor_data' dataset, mapping 'CumCases' to the x-axis
+  geom_histogram(binwidth = 10000, fill = "orange", color = "white", alpha = 0.9) +  # Create a histogram with specified bin width, fill color, border color, and transparency
+  labs(title = "Distribution of Cumulative Cases", x = "Cumulative Cases", y = "Frequency") +  # Set the title and axis labels for the plot
+  theme_minimal()  # Apply a minimal theme to the plot for a cleaner appearance
+
+# Plot with log transformation on the x-axis
+ggplot(cor_data, aes(x = CumCases)) +  # Initialize another ggplot object using the 'cor_data' dataset, mapping 'CumCases' to the x-axis
+  geom_histogram(binwidth = 0.1, fill = "orange", color = "white", alpha = 0.9) +  # Create a histogram with a smaller bin width for finer detail
+  scale_x_log10() +  # Apply a logarithmic scale to the x-axis for better visualization of data spread
+  labs(title = "Distribution of Cumulative Cases (Log Scale)", x = "Cumulative Cases (Log Scale)", y = "Frequency") +  # Set the title and axis labels for the log-transformed plot
+  theme_minimal()  # Apply a minimal theme to the plot for consistency with the first plot
+
+```
+
+4. Divide the cor_data into training and testing, where training data represent 65% of the number of rows.
+
+```{r}
+
+# Set a seed for reproducibility
+set.seed(123)  # Set the random seed to ensure that the results can be reproduced in future runs
+
+# Calculate the number of rows for the training set (65% of total rows)
+train_size <- floor(0.65 * nrow(cor_data))  # Calculate 65% of the total number of rows in 'cor_data' for the training set size
+
+# Create a random sample of row indices for the training set
+train_indices <- sample(seq_len(nrow(cor_data)), size = train_size)  # Generate random indices for the training set from the total row indices
+
+# Split the data into training and testing sets
+train_data <- cor_data[train_indices, ]  # Subset 'cor_data' to create the training dataset using the sampled indices
+test_data <- cor_data[-train_indices, ]   # Create the testing dataset by excluding the training indices from 'cor_data'
+
+# Verify the sizes of the datasets
+cat("Training data rows:", nrow(train_data), "\n")  # Print the number of rows in the training dataset
+cat("Testing data rows:", nrow(test_data), "\n")     # Print the number of rows in the testing dataset
+
+
+```
+
+5. Train a linear regression model to predict cumulative cases from the GDP of the countries. Then, evaluate this model on the test data and print the root mean square error value.
+
+```{r}
+
+# Train a linear regression model on the training data
+linear_model <- lm(CumCases ~ GDP, data = train_data)  # Fit a linear regression model predicting 'CumCases' based on 'GDP' using the training dataset
+
+# Print the summary of the model to see coefficients and other statistics
+summary(linear_model)  # Display detailed statistics of the fitted model, including coefficients, R-squared, and p-values
+
+# Make predictions on the test data
+predictions <- predict(linear_model, newdata = test_data)  # Use the trained model to make predictions of 'CumCases' on the testing dataset
+
+# Calculate RMSE
+rmse <- sqrt(mean((predictions - test_data$CumCases) ^ 2))  # Calculate the Root Mean Square Error (RMSE) to assess the prediction accuracy
+
+# Print the RMSE value
+cat("Root Mean Square Error (RMSE):", rmse, "\n")  # Output the RMSE value to evaluate the model's performance
+
+
+```
+
+6. Train another linear regression model to predict cumulative cases from all the other variables. Then, evaluate this model on the test data and print the root mean square error value.
+
+```{r}
+
+# Train a linear regression model using CumTests, Population, GDP, and GDPCapita to predict CumCases
+alternative_prediction_model <- lm(CumCases ~ CumTests + Population + GDP + GDPCapita, data = train_data)  # Fit a linear regression model predicting 'CumCases' based on multiple predictors: 'CumTests', 'Population', 'GDP', and 'GDPCapita' using the training dataset
+
+# Print the summary of the model to see coefficients and other statistics
+summary(alternative_prediction_model)  # Display detailed statistics of the fitted model, including coefficients, R-squared, and p-values
+
+# Make predictions on the test data
+alternative_predictions <- predict(alternative_prediction_model, newdata = test_data)  # Use the trained model to make predictions of 'CumCases' on the testing dataset
+
+# Calculate RMSE
+alternative_rmse <- sqrt(mean((alternative_predictions - test_data$CumCases) ^ 2))  # Calculate the Root Mean Square Error (RMSE) to assess the prediction accuracy of the alternative model
+
+# Print the RMSE value
+cat("Root Mean Square Error (RMSE):", alternative_rmse, "\n")  # Output the RMSE value to evaluate the performance of the alternative model
+
+
+```
+
+7. Interpret the two models and write a small report of highlighting the differences between using the two models. For example, in which cases we should use the first model and in which cases the second one is better to use.
+
+**Interpretation goes below here**:
+
+ Model 1 predicts cumulative cases based on GDP, with the formula `CumCases ~ GDP` using the training data. The model exhibits a minimum cumulative case value of -160.102 and a maximum of 1,020,532, with a median of -547, indicating that many observations fall below this median. The first quartile is -2,098, and the third quartile is -370, reflecting the distribution of cumulative cases. The R-squared value of 0.2104 indicates that approximately 21.04% of the variability in cumulative cases can be explained by GDP, while the adjusted R-squared of 0.2103 suggests no overfitting. The residual standard error (RSE) is 35.340 on 9,766 degrees of freedom, and the root mean square error (RMSE) is 37,856.72, indicating an average prediction error. The F-statistic of 2,602 and a highly significant p-value (< 2.2e-16) demonstrate a statistically significant relationship between GDP and cumulative cases.
+
+ Model 1, which predicts cumulative cases based on GDP, is valuable for exploratory analysis, serving as a foundation for more complex models and acting as a benchmark for comparisons. It helps understand trends related to GDP fluctuations, aiding policymakers and public health officials in evaluating the economic impact on health outcomes. While useful for preliminary predictions, it has limited explanatory power and may require additional variables for improved accuracy. Caution is advised when relying on its results.
+
+ Model 2 predicts cumulative COVID-19 cases by analyzing cumulative tests, population size, GDP, and GDP per capita using the formula `CumCases ~ CumTests + Population + GDP + GDPCapita`. The R-squared value of 0.7738 and adjusted R-squared of 0.7737 indicate that about 77.38% of the variance in cumulative cases is explained by these variables, with minimal risk of overfitting due to the close values of R-squared and adjusted R-squared. Analyzing the spread of cumulative cases, the model shows a range from -347,651 to 286,690, with a median of 1,323 and interquartile values of 350 and 1,632, reflecting a concentration around the median yet notable outliers. Error metrics reveal some limitations in predictive precision. The residual standard error (RSE) of 18,920 and root mean square error (RMSE) of 17,883.27 suggest that model predictions deviate significantly from observed cumulative cases, indicating limited accuracy in absolute terms. Nevertheless, with an F-statistic of 8,349 and an extremely low p-value (< 2.2e-16), the model is statistically significant, affirming a meaningful relationship between the predictors and cumulative cases. Overall, while the model captures substantial variation in the data, its high RSE and RMSE imply it may benefit from additional refinement or new predictors to enhance accuracy.
+
+ We can use Model 2 to estimate cumulative COVID-19 cases based on cumulative tests, population size, GDP, and GDP per capita. This model can serve as a useful tool for forecasting potential case numbers under different testing rates and demographic or economic conditions, making it valuable for public health planning and resource allocation. Given the statistical significance of the predictors, it allows policymakers to examine how changes in testing intensity, population growth, or economic shifts might influence cumulative cases. While it serves as a baseline for more complex models, caution is advised in interpretation, and additional data may be needed to improve accuracy.
+
+ Model 1 and Model 2 differ notably in their complexity and predictive power. Model 1 relies solely on GDP to predict cumulative cases, yielding an R-squared of 0.2104, indicating it explains only 21.04% of case variability. Its high residual standard error (35.340) and RMSE (37,856.72) reveal limited predictive accuracy, though it serves as an exploratory tool for understanding economic impact on case numbers. In contrast, Model 2 incorporates cumulative tests, population size, GDP, and GDP per capita, resulting in a much higher R-squared of 0.7738, which explains 77.38% of the variance in cumulative cases. With lower RSE (18,920) and RMSE (17,883.27), Model 2 demonstrates better precision, although still imperfect. Both models are statistically significant (p < 2.2e-16), yet Model 2’s multi-dimensional approach makes it more suitable for forecasting under different demographic and economic conditions, aiding in public health and policy planning.
+
+
+8. Extend the analysis by training alternative regression models (e.g., Ridge Regression, Lasso Regression, or Decision Trees) to predict cumulative cases using all variables. Compare the performance (e.g., RMSE, R-squared) of these models with the linear regression models. Present the comparisons between these approaches and the linear regression models in a table.
+
+```{r}
+# Train a Decision Tree model using CumTests, Population, GDP, and GDPCapita to predict CumCases
+tree_model <- rpart(CumCases ~ CumTests + Population + GDP + GDPCapita, data = train_data, method = "anova")
+
+# Print the summary of the model to see the tree structure and variable importance
+print(tree_model)
+summary(tree_model)
+
+# Make predictions on the test data
+tree_predictions <- predict(tree_model, newdata = test_data)
+
+# Calculate RMSE for the Decision Tree model
+tree_rmse <- sqrt(mean((tree_predictions - test_data$CumCases) ^ 2))
+
+# Print the RMSE value for comparison
+cat("Decision Tree Root Mean Square Error (RMSE):", tree_rmse, "\n")
+
+```
+
+**Table of the results goes here**:
+
+```{r}
+
+# Create a data frame for the comparison
+comparison_data <- data.frame(
+  Feature = c(
+    "Model Type",
+    "Formula Used",
+    "Model Summary Output",
+    "Prediction Method",
+    "Assumptions",
+    "Interpretability",
+    "Handling of Multicollinearity",
+    "Performance Evaluation",
+    "RMSE Example Output",
+    "Flexibility",
+    "Overfitting Potential",
+    "Data Requirements"
+  ),
+  `Decision Tree Model` = c(
+    "Non-linear, tree-based",
+    "CumCases ~ CumTests + Population + GDP + GDPCapita",
+    "Tree structure, splits, variable importance",
+    "Uses rules based on splits in the tree",
+    "Few assumptions about data distribution; handles non-linearity well",
+    "Visual representation, easy to interpret",
+    "Can handle correlated features without issues",
+    "RMSE calculated from predictions",
+    "Decision Tree RMSE: [value]",
+    "Can model complex relationships",
+    "Higher risk of overfitting, especially with small datasets",
+    "Works well with categorical and continuous data"
+  ),
+  `Linear Regression Model` = c(
+    "Linear, parametric",
+    "CumCases ~ CumTests + Population + GDP + GDPCapita",
+    "Coefficients, R-squared, p-values",
+    "Linear combination of input features",
+    "Assumes linearity, normality, homoscedasticity",
+    "Coefficients indicate relationship strength, but less visual",
+    "May be affected by multicollinearity",
+    "RMSE calculated from predictions",
+    "Linear Regression RMSE: [value]",
+    "Limited to linear relationships",
+    "Generally lower risk unless too many features are included",
+    "Primarily requires continuous data"
+  )
+)
+
+# Print the comparison table
+kable(comparison_data, "html", caption = "Comparison table of Decision Tree and Linear Regression Models") %>%
+  kable_styling(full_width = F, position = "center")
+
+
+```
+
+----
+
+*** 

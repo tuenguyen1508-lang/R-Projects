@@ -1,0 +1,269 @@
+---
+title: "Final Assignment, Task 1"
+author: "Tue Minh Nguyen"
+date: "20/10/2024"
+output: html_document
+Author ID: u3260265
+---
+## Task 1 description
+ The COVID-19 pandemic has generated a vast array of data related to cases, recoveries, testing, and various health metrics across different nations. However, this information is frequently scattered across numerous sources and formats, posing challenges for researchers and healthcare providers when it comes to analyzing trends and making informed decisions. Therefore, there is a demand for a comprehensive and organized dataset that consolidates this information, facilitating effective analysis of the pandemic's impact.The primary objectives of task 1 are data integration, data cleaning, standardization, data enrichment, handling missing values, adding new variables and preparation of data for further analysis. The anticipated outcome of this task is the creation of a set of structured DataFrames that effectively consolidate data from various CSV files, resulting in a tidied DataFrame where each observation is consistent and correctly aligned. This will be complemented by uniform date formatting across all DataFrames, ensuring seamless integration and analysis. Additionally, a master DataFrame will be enriched with critical variables, including recovered cases, new tests, population data, GDP, and GDP per capita. Furthermore, the merged DataFrame will have all missing values replaced by zeros, enhancing its completeness and reliability. Finally, the addition of meaningful new variables will significantly improve the dataset's analytical capabilities, enabling deeper insights into COVID-19 trends and impacts.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+library(lubridate)
+
+```
+
+
+
+# Task 1: Data Preparation and Wrangling:
+
+1.	import the data from the CSV files and store them into dataframes named appropriately. 
+
+```{r}
+# Read the CSV files and store them into dataframes
+countries <- read.csv("~/data/Countries.csv")
+covid19_data <- read.csv("~/data/Covid19.csv")
+recovered <- read.csv("~/data/Recovered.csv")
+tests <- read.csv("~/data/Tests.csv")
+
+```
+
+
+2.	Tidy up the dataframe driven from the “Recovered.csv” files to be compatible with the dataframe driven from the “Covid19.csv” file, _i.e._, every observation should have a record of recovered patients in one country in a single day. 
+
+
+```{r}
+# Transform the 'recovered' data frame from a wide format to a long format, where each date has its own row.
+# Select columns that start with "X" (representing dates), rename them to "Date", and store their values in "Recovered_Cases".
+recovered <- recovered %>%
+  pivot_longer(
+    cols = starts_with("X"),      # Select columns that start with "X", typically representing dates in the original data.
+    names_to = "Date",            # Rename the column headers (originally "X2020.01.01", etc.) as "Date" in the new column.
+    values_to = "Recovered_Cases" # Store values from selected columns in a new column named "Recovered_Cases".
+    ) %>%
+  mutate(Date = str_remove(Date, "X")) # Remove the "X" prefix from the "Date" column values to display dates in a cleaner format.
+
+# Convert the resulting 'tibble' back to a standard data frame format for compatibility with other functions.
+recovered <- as.data.frame(recovered)
+
+# Display the first few rows of the cleaned data frame to verify the transformation.
+head(recovered)
+
+
+```
+3.	Change the column names in the dataframes were loaded from the following files accordingly.
+
+
+```{r}
+
+# Create vectors to store the new column names for each data frame.
+covid19_columnnames <- c("Code", "Country", "Continent", "Date", "NewCases", "NewDeaths")
+tests_columnnames <- c("Code", "Date", "NewTests")
+countries_columnnames <- c("Code", "Country", "Population", "GDP", "GDPCapita")
+recovered_columnnames <- c("Country", "Date", "Recovered")
+
+# Change the column names of the data frames to the new names specified in the vectors.
+names(covid19_data) <- covid19_columnnames  # Ensure 'covid19_data' has exactly 6 columns.
+names(tests) <- tests_columnnames            # Ensure 'tests' has exactly 3 columns.
+names(countries) <- countries_columnnames    # Ensure 'countries' has exactly 5 columns.
+names(recovered) <- recovered_columnnames    # Ensure 'recovered' has exactly 3 columns.
+
+# Create a list of data frames with their respective names for easier management and access.
+data_list <- list(
+  covid19_data = covid19_data,
+  countries = countries, 
+  recovered = recovered,
+  tests = tests
+)
+
+# Display the column names of each data frame in the list to verify the changes.
+lapply(data_list, names)
+
+
+```
+
+4.	Ensure that all dates variables are of the same date format across all dataframes. 
+
+```{r}
+# Loop through each data frame in 'df_list'
+for (i in seq_along(data_list)) {
+  
+  # Check if 'Date' column exists in the data frame
+  if ('Date' %in% colnames(data_list[[i]])) {
+    
+    # Convert 'Date' column to "yyyy-mm-dd" using multiple format options
+    data_list[[i]]$Date <- as.Date(data_list[[i]]$Date, 
+                                 tryFormats = c("%Y-%m-%d", 
+                                                "%Y/%m/%d", 
+                                                "%d-%m-%Y", 
+                                                "%Y.%m.%d"))
+    
+    # Warn if any date values failed to convert (NA values)
+    if (any(is.na(data_list[[i]]$Date))) {
+      warning(paste("Date conversion resulted in NA for dataframe at index", i))
+    }
+  }
+}
+
+# Assign each updated data frame in 'df_list' to the global environment
+list2env(data_list, envir = .GlobalEnv)
+
+```
+
+5.	Considering the master dataframe is the one loaded from the “Covid19.csv” file, add new 5 variables to it from the other files (Recovered.csv, Tests.csv, Countries.csv). The 5 new added variables should be named (“Recovered”, “NewTests”, “Population”, “GDP”, “GDPCapita”) accordingly.
+
+
+```{r}
+# Add 'Recovered' cases by joining with 'recovered' on 'Country' and 'Date'
+covid19_data <- covid19_data %>%
+  left_join(recovered, by = c("Country", "Date"))
+
+# Add 'NewTests' by joining with 'tests' on 'Country' (as 'Code') and 'Date'
+covid19_data <- covid19_data %>%
+  left_join(tests, by = c("Code", "Date"))
+
+# Add demographic and economic data ('Population', 'GDP', 'GDPCapita') from 'countries' on 'Country'
+covid19_data <- covid19_data %>%
+  left_join(countries, by = c("Code", "Country"))
+
+# Rename columns for consistency (adjust if needed)
+covid19_data <- covid19_data %>%
+  rename(
+    Recovered = Recovered,
+    NewTests = NewTests,
+    Population = Population,
+    GDP = GDP,
+    GDPCapita = GDPCapita
+  )
+
+# Display updated dataframe
+head(covid19_data)
+
+
+
+```
+
+6.	Check NAs in the merged dataframe and change them to `Zero`. 
+
+```{r}
+# Replace NAs with 0 in all columns of 'covid19_data'
+covid19_data <- covid19_data %>%
+  mutate(across(everything(), ~replace_na(., 0)))
+
+# Display the first few rows to verify changes
+head(covid19_data)
+
+
+```
+
+7.	Using existing “Date” variable; add month and week variables to the master dataframe. 
+    
+    [Hint: you may use functions from `lubridate` package]
+
+```{r}
+# Add 'Month' and 'Week' columns based on the 'Date' column
+covid19_data <- covid19_data %>%
+  mutate(Month = month(Date),
+         Week = week(Date))
+
+# Display the first few rows to verify the new columns
+head(covid19_data)
+
+
+```
+
+8. Add four new variables to the master dataframe (“CumCases”, “CumDeaths”, “CumRecovered”, “CumTests”). These variables should reflect the cumulative relevant data up to the date of the observation; _i.e._, CumCases for country “X” at Date “Y” should reflect the total number of cases in country “X” since the beginning of recording data till the date “Y”. 
+
+    [Hint: first arrange by date and country, then for each new variable to be added you need to group by country and mutate the new column using the cumsum function]
+
+```{r}
+# Add cumulative columns for cases, deaths, recoveries, and tests, grouped by 'Country' and ordered by 'Date'
+covid19_data <- covid19_data %>%
+  group_by(Country) %>%
+  arrange(Date) %>%
+  mutate(CumCases = cumsum(NewCases), 
+         CumDeaths = cumsum(NewDeaths),
+         CumRecovered = cumsum(Recovered),
+         CumTests = cumsum(NewTests))
+
+# Display the updated data frame
+print(covid19_data)
+
+```
+
+9. Add two new variables to the master dataframe (“Active”, “FatalityRate”). Active variable should reflect the infected cases that has not been closed yet (by either recovery or death), and it could be calculated from (CumCases – (CumDeaths + CumRecovered)). On the other hand, FatalityRate variable should reflect the percentages of death to the infected cases up to date and it could be calculated from (CumDeaths / CumCases). 
+
+```{r}
+
+# Add 'Active' cases and 'FatalityRate' variables to the dataframe
+covid19_data <- covid19_data %>%
+  mutate(Active = CumCases - (CumDeaths + CumRecovered),
+         FatalityRate = ifelse(CumCases > 0, CumDeaths / CumCases, 0))
+
+# Display the first few rows to verify the new columns
+head(covid19_data)
+
+```
+
+10. Add four new variables to the master dataframe (“Cases_1M_Pop”, “Deaths_1M_Pop”, “Recovered_1M_Pop”, “Tests_1M_Pop”) These variables should reflect the cumulative relevant rate per one million of the corresponding country population, (i.e Cases_1M_Pop for country “X” at Date “Y” should reflect the total number of new cases up to date “Y” per million people of country “X” population)
+
+    [Hint: Cases_1M_Pop = CumCases*(10^6) / Population)]
+
+```{r}
+# Add cumulative rates per one million of the corresponding country population
+covid19_data <- covid19_data %>%
+  mutate(
+    Cases_1M_Pop = CumCases * (10^6) / Population,
+    Deaths_1M_Pop = CumDeaths * (10^6) / Population,
+    Recovered_1M_Pop = CumRecovered * (10^6) / Population,
+    Tests_1M_Pop = CumTests * (10^6) / Population
+  )
+
+# Display the data frame to verify the new rate columns
+print(covid19_data)
+
+```
+
+**Task 1 final Report**: To ensure that this task has been finished correctly, run the following code and obtain the output as part of your knitted report. This will be used in marking this task.  
+
+```{r}
+
+problems(covid19_data) # in case if you are reading the data into tibbles
+
+head(covid19_data)
+
+cat("Number of columns is:", ncol(covid19_data), "and number of rows is:", nrow(covid19_data), "\n")
+
+# check for specific values for the newly added columns, eg. deaths in a specific day
+print(covid19_data$Recovered[10001])
+print(covid19_data$NewTests[10001])
+print(covid19_data$Population[10001])
+print(covid19_data$GDP[10001])
+print(covid19_data$GDPCapita[10001])
+print(covid19_data$Cases_1M_Pop[6004])
+print(covid19_data$Deaths_1M_Pop[6004])
+print(covid19_data$Recovered_1M_Pop[6004])
+print(covid19_data$Tests_1M_Pop[6004])
+
+# check date format
+is.na(as.Date(covid19_data$Date[200],  format = "%Y-%m-%d"))
+
+# check week and month of a specific value
+print(covid19_data$Week[3000])
+print(covid19_data$Month[3000])
+
+write_csv(covid19_data, "covid19_data.csv")
+```
+
+----
+
+*** 

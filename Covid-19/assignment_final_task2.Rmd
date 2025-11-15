@@ -1,0 +1,389 @@
+---
+title: "Final Assignment, Task 2"
+author: "Tue Minh Nguyen"
+date: "20/10/2024"
+output: html_document
+Author ID: u3260265
+---
+## Task 2 description
+ The COVID-19 pandemic has created a complex global dataset that includes infection rates, recovery statistics, testing figures, and death tolls. Analyzing this data is crucial for understanding the pandemic's impact, but its volume and fragmentation present challenges for researchers and public health officials. Task 2 aims to extract meaningful insights by focusing on key metrics such as daily death tolls and cumulative case trends. Key objectives include identifying the peak death toll, visualizing cumulative data, analyzing statistics for the top 10 countries, and assessing confirmed cases by continent. The anticipated outcome of this task is a comprehensive analysis that provides insights into trends and statistics, supported by visualizations that illustrate changes in COVID-19 metrics over time, ultimately aiding informed public health decision-making.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(dplyr)
+library(ggplot2)  
+library(reshape2)
+library(tidyverse)
+library(tidyr)
+covid19_data <- read.csv("~/data/covid19_data.csv")
+```
+
+# Task 2: Task 2: Exploratory Data Analysis: 
+
+1. Find the day with the highest death toll reported across the world. Print the date and the death toll of that day. 
+
+```{r}
+# Ensure the date column is in Date format
+covid19_data$Date <- as.Date(covid19_data$Date)
+
+# Aggregate the total deaths by date
+deaths <- covid19_data %>%
+  group_by(Date) %>%
+  summarise(total_deaths = sum(NewDeaths, na.rm = TRUE))
+
+# Find the date with the highest death toll
+death_day_max <- deaths %>%
+  filter(total_deaths == max(total_deaths, na.rm = TRUE))
+
+# Display the date with the highest death toll and the total deaths for that date
+cat("The day with the highest death toll reported across the world is:", 
+    as.character(death_day_max$Date), 
+    "with a death toll of:", 
+    death_day_max$total_deaths, "\n")
+
+
+```
+
+
+2. Build a graph to show how the cumulative data of (Infected Cases, Deaths, Recovered, Tests) change over the time for the whole world collectively. 
+
+
+```{r}
+
+# Convert the Date column in covid19_data to a Date object to ensure correct date formatting
+covid19_data$Date <- as.Date(covid19_data$Date)
+
+# Aggregate data by Date, summing up cumulative values for Cases, Deaths, Recoveries, and Tests across all records
+global_totals <- covid19_data %>%
+  group_by(Date) %>%   # Group the data by each unique date
+  summarize(
+    TotalCases = sum(CumCases, na.rm = TRUE),        # Calculate the total cases for each date
+    TotalDeaths = sum(CumDeaths, na.rm = TRUE),      # Calculate the total deaths for each date
+    TotalRecovered = sum(CumRecovered, na.rm = TRUE), # Calculate the total recoveries for each date
+    TotalTests = sum(CumTests, na.rm = TRUE)         # Calculate the total tests for each date
+  ) %>%
+  ungroup()  # Ungroup the data to prevent unintended grouping in later operations
+
+# Create a line plot showing cumulative cases, deaths, recoveries, and tests over time
+ggplot(global_totals, aes(x = Date)) +   # Set the x-axis as Date to plot over time
+  geom_line(aes(y = TotalCases, color = "Cases"), linewidth = 1) +     # Add a line for cumulative cases
+  geom_line(aes(y = TotalDeaths, color = "Deaths"), linewidth = 1) +   # Add a line for cumulative deaths
+  geom_line(aes(y = TotalRecovered, color = "Recovered"), linewidth = 1) +  # Add a line for cumulative recoveries
+  geom_line(aes(y = TotalTests, color = "Tests"), linewidth = 1) +     # Add a line for cumulative tests
+
+  # Apply a logarithmic scale to the y-axis for better visualization of differences in large values
+  scale_y_log10() +
+
+  # Set labels for the axes and add a descriptive title
+  labs(
+    x = "Date",  # Label for the x-axis
+    y = "Cumulative Count (log scale)",  # Label for the y-axis
+    title = "Global Cumulative COVID-19 Data Over Time",  # Chart title
+    color = "Data Category"  # Title for the color legend
+  ) +
+
+  # Customize colors for each data category line
+  scale_color_manual(values = c("Cases" = "green", "Deaths" = "orange", "Recovered" = "blue", "Tests" = "pink")) +
+
+  # Apply a minimal theme for a clean chart appearance
+  theme_minimal()
+
+```
+
+
+3. Extract the data corresonding to the last day _(05/05/2020)_ for all countries and save it in a separate dataframe and name it _"lastDay_data"_. 
+
+    [Hint: use filter function with Date = "2020-05-05"]
+
+```{r}
+# Ensure the 'Date' column is in Date format
+covid19_data$Date <- as.Date(covid19_data$Date)
+
+# Extract data for the last day (05/05/2020)
+lastDay_data <- covid19_data %>%
+  filter(Date == as.Date("2020-05-05"))
+
+# Display the extracted data for the last day
+lastDay_data
+
+
+```
+
+
+4. Based on the data in _"lastDay_data"_ dataframe, extract the corresponding records of the top 10 countries worldwide with current active cases, total confirmed cases, or fatality rate in separate dataframes (_i.e._, top10activeW, top10casesW, top10fatalityW, top10testsMW).
+
+    [Hint: you can use head(arranged_data, n=10) to get the top 10 records and pass the records of  these 10 countries in newly created data frames]
+
+```{r}
+# Extract the top 10 countries with the highest current active cases
+top10activeW <- lastDay_data %>%
+  arrange(desc(Active)) %>%  # Arrange by active cases in descending order
+  head(n = 10)               # Select the top 10 countries
+
+# Extract the top 10 countries with the highest total confirmed cases
+top10casesW <- lastDay_data %>%
+  arrange(desc(CumCases)) %>%  # Arrange by cumulative cases in descending order
+  head(n = 10)                 # Select the top 10 countries
+
+# Extract the top 10 countries based on fatality rate
+top10fatalityW <- lastDay_data %>%
+  arrange(desc(FatalityRate)) %>%  # Arrange by fatality rate in descending order
+  head(n = 10)                     # Select the top 10 countries
+
+# Extract the top 10 countries based on total tests conducted
+top10testsMW <- lastDay_data %>%
+  arrange(desc(CumTests)) %>%  # Arrange by cumulative tests in descending order
+  head(n = 10)                 # Select the top 10 countries
+
+# Display the top 10 dataframes for active cases, total cases, fatality rate, and total tests
+top10activeW
+top10casesW
+top10fatalityW
+top10testsMW
+
+```
+
+5. Based on the data of the in _"lastDay_data"_ dataframe, print total confirmed cases, death, recovered cases as well as the total tests per every `continent`. 
+
+```{r}
+
+# Aggregate total confirmed cases, deaths, recoveries, and tests by continent
+continent_summary <- lastDay_data %>%
+  group_by(Continent) %>%  # Group data by continent
+  summarise(
+    Total_Confirmed = sum(CumCases, na.rm = TRUE),  # Total confirmed cases per continent
+    Total_Deaths = sum(CumDeaths, na.rm = TRUE),    # Total deaths per continent
+    Total_Recovered = sum(CumRecovered, na.rm = TRUE),  # Total recoveries per continent
+    Total_Tests = sum(CumTests, na.rm = TRUE)       # Total tests conducted per continent
+  )
+
+# Output the summary for each continent
+head(continent_summary)  # Display the first few rows of the summary
+```
+
+6. Build a graph to show the total number of cases over the time for the top 10 countries that have been obtained in question 4 (Use log transformation for the values in Y axis for better presentation). 
+
+    [Hint: first you need to get the data of the top-10 countries and then plot their lines, ie, one line per country]
+
+```{r}
+# Select top 10 countries based on total confirmed cases
+top10_countries_data <- head(arrange(lastDay_data, desc(CumCases)), n = 10)$Country
+
+# Filter lastDay_data for the top 10 countries
+top10_data_df <- filter(lastDay_data, Country %in% top10_countries_data)
+
+# Create a bar plot of total cases for the top 10 countries
+ggplot(top10_data_df, aes(x = Country, y = CumCases, fill = Country)) +
+  geom_col() +  # Create a bar plot
+  scale_y_log10() +  # Use a logarithmic scale for the y-axis
+  labs(
+    title = "Total Number of Cases for Top 10 Countries",  # Title of the plot
+    x = "Country",  # x-axis label
+    y = "Total Number of Cases (log scale)",  # y-axis label
+    fill = "Country"  # Legend title
+  ) +
+  theme(axis.text.x = element_text(angle = 75, vjust = 1, hjust = 1))  # Adjust x-axis text for better readability
+
+```
+
+7. Build a graph for the top 10 countries with current highest active cases which was obtained previously in question 4. The graph should have one sub-graph (_i.e._, using facet function) for each of these countries, every sub-graph should show how the new cases, new deaths, and new recovered cases were changing over the time (Use log for Y axis for better presentation, Use different colour to distinguish between new cases, deaths, and recovered). 
+
+    [hint: geom_line function with date on x_axis and each of the values of the variables in y_axis]
+
+```{r}
+
+# Filter data for the top 10 countries with the highest active cases (from question 4)
+top10_active_countries <- top10activeW$Country  # List of countries
+top10_active_data <- filter(covid19_data, Country %in% top10_active_countries)  # Filter main data
+
+# Create faceted line plot for each country, showing trends in new cases, deaths, and recoveries
+ggplot(top10_active_data, aes(x = Date)) +
+  geom_line(aes(y = NewCases, color = "New Cases")) +        # Line for new cases
+  geom_line(aes(y = NewDeaths, color = "New Deaths")) +      # Line for new deaths
+  geom_line(aes(y = Recovered, color = "New Recovered")) + # Line for new recoveries
+  scale_y_log10() +  # Use logarithmic scale for y-axis for better presentation
+  labs(
+    title = "New Cases, Deaths, and Recoveries for Top 10 Active Case Countries",
+    x = "Date",
+    y = "Log Scale of Daily Counts",
+    color = "Legend"
+  ) +
+  facet_wrap(~Country, scales = "free_y") +  # Create a separate sub-graph for each country
+  theme_minimal() +
+  theme(legend.position = "top")  # Position the legend at the top for easier readability
+
+
+```
+
+8. Build a graph for the top 10 countries with current highest total tests per one million of the population which was obtained previously in question 4. This graph should present total number of infected cases, total tests so far, and the total tests per million of the population for each country. 
+
+    [hint: you can use bar chart to achieve this task]
+
+```{r}
+
+# Extract COVID-19 data for the top 10 countries with the highest total tests per million population
+top_tests_data <- covid19_data %>%
+  # Filter the dataset to include only the countries in the top 10 for tests per million
+  filter(Country %in% top10testsMW$Country) %>%
+  # Group the data by country for aggregation
+  group_by(Country) %>%
+  # Summarize the total cases, tests, and tests per million for each country
+  summarise(
+    TotalCases = sum(NewCases),          # Calculate the total number of new cases
+    TotalTests = sum(NewTests),          # Calculate the total number of new tests conducted
+    TestsPerMillion = sum(Tests_1M_Pop)  # Calculate total tests per million population
+  )
+
+# Reshape the data to a long format using pivot_longer
+long_data <- top_tests_data %>%
+  # Transform the data so that metrics are in a single column, making it easier to plot
+  pivot_longer(cols = c(TotalCases, TotalTests, TestsPerMillion),  # Specify the columns to pivot
+               names_to = "Metric",  # Name for the new column containing the metric names
+               values_to = "Count")  # Name for the new column containing the metric values
+
+# Create a bar plot to visualize the data
+ggplot(long_data, aes(x = Country, y = Count, fill = Metric)) +
+  # Create a bar chart with counts side by side for each metric
+  geom_bar(stat = "identity", position = "dodge") +
+  # Use a logarithmic scale for the y-axis for better visibility of data distribution
+  scale_y_log10(labels = scales::comma) +
+  # Add labels and title to the plot
+  labs(
+    title = "Comparison of Total Cases, Tests, and Tests per Million in Top 10 Countries",
+    x = "Country",              # Label for the x-axis
+    y = "Count (Log Scale)",    # Label for the y-axis indicating the scale used
+    fill = "Metric"             # Legend title for the fill colors
+  ) +
+  # Apply a minimal theme for a clean look
+  scale_fill_manual(values = c("TotalCases" = "green", 
+                                "TotalTests" = "red", 
+                                "TestsPerMillion" = "brown")) +
+  theme_minimal() +
+  # Rotate x-axis text for better readability
+  theme(axis.text.x = element_text(angle = 50))
+
+```
+
+```
+
+9.	Build a graph to present the statistics total, average, median of confirmed cases of the  continents. ( you may use log for Y axis for better presentation, Use Continent in the legend, make sure x-axis labels does not overlap). 
+
+```{r}
+
+# Aggregate total, average, and median confirmed cases by continent
+continent_stats <- covid19_data %>%
+  
+  # Group the data by each continent
+  group_by(Continent) %>%
+  
+  # Calculate the total, average, and median confirmed cases for each continent
+  summarize(
+    Total = sum(CumCases, na.rm = TRUE),      # Sum of confirmed cases (ignoring NA values)
+    Average = mean(CumCases, na.rm = TRUE),   # Average of confirmed cases (ignoring NA values)
+    Median = median(CumCases, na.rm = TRUE)   # Median of confirmed cases (ignoring NA values)
+  ) %>%
+  
+  # Transform the data from wide to long format for easier plotting
+  pivot_longer(cols = c(Total, Average, Median), names_to = "Statistic", values_to = "Cases")
+
+# Plot the aggregated data with a log scale on the Y-axis
+ggplot(continent_stats, aes(x = Continent, y = Cases, fill = Continent)) +
+  
+  # Create a bar chart with bars for each statistic by continent, placed side-by-side
+  geom_bar(stat = "identity", position = "dodge") +
+  
+  # Separate the plot into facets for each statistic (Total, Average, and Median)
+  facet_wrap(~ Statistic) +
+  
+  # Set a logarithmic scale for the Y-axis to better handle large ranges in case numbers
+  scale_y_log10() +
+  
+  # Add labels for the chart
+  labs(title = "Confirmed Cases by Continent",
+       y = "Number of Cases (Log Scale)",
+       x = "Continent") +
+  
+  # Apply a minimal theme for a clean layout
+  theme_minimal() +
+  
+  # Rotate the x-axis labels for readability
+  theme(axis.text.x = element_text(angle = 40, hjust = 1))
+
+
+```
+
+
+10. Based on the data of the _"lastDay_data"_ dataframe, list the top 2-countries of each continent that report the highest death toll. 
+
+```{r}
+# Aggregate data by Continent and Country, then select countries with the highest cumulative deaths in each continent
+highest_deaths_per_continent <- lastDay_data %>%
+  
+  # Group the data by continent to perform continent-specific sorting
+  group_by(Continent) %>%
+  
+  # Sort each continent's data in descending order of cumulative deaths
+  arrange(Continent, desc(CumDeaths)) %>%
+  
+  # Select the top 2 countries with the highest cumulative deaths in each continent
+  slice_head(n = 2) %>%
+  
+  # Ungroup the data to remove the continent grouping structure
+  ungroup()
+
+# Display the resulting dataset of countries with the highest cumulative deaths per continent
+highest_deaths_per_continent
+
+```
+
+----
+
+11. **Summary Task 2 final Report**:
+ This report provides an analysis of the COVID-19 pandemic, emphasizing global statistics, patterns, and major insights drawn from the data. Its aim is to offer a comprehensive overview of the pandemic's effects across various countries and continents, underscoring essential metrics that influence public health responses.
+ 
+ The highest global death toll from COVID-19 was recorded on April 16, 2020, with 10,520 fatalities. Since then, cumulative global data has shown a consistent increase in the number of infections, deaths, and tests conducted. However, the number of recoveries began to rise steadily from mid-January, eventually surpassing the death rate. The attached graph visually represents the trends in global cumulative COVID-19 data.
+
+```{r}
+
+knitr::include_graphics("C:/Users/NGOCNT/Pictures/Screenshots/Screenshot 2024-10-30 191255.png")
+
+```
+ 
+ The dataset for May 5, 2020, includes key metrics for each country, displaying information such as country code, country name, continent, date (05/05/2020), new cases, new deaths, recovered cases, new tests, population, GDP, GDP per capita, month, week, deaths per million population, recovered cases per million population, and tests per million population. These metrics provide a snapshot of the pandemic's status on that date, offering insights into its impact across different regions.
+ 
+ The top 10 countries with the highest current active COVID-19 cases are the USA, UK, Russia, Italy, Spain, France, Brazil, Turkey, Netherlands, India. The top 10 countries with the highest total confirmed COVID-19 cases are the USA, Spain, Italy, UK, Germany, Russia, France, Turkey, Brazil and Iran. The top 10 countries with the highest fatality rates include Nicaragua, Comoros, France, Sint Maarten, Yemen, Belgium, the UK, British Virgin Islands, Northern Mariana Islands, and Italy. In terms of testing, the top 10 countries based on total tests conducted are the USA, Russia, Germany, Italy, Spain, Turkey, India, the UK, Canada, and France.
+
+ The dataset includes COVID-19 statistics from six continents: Africa, Asia, Europe, North America, Oceania, and South America. Oceania has the lowest total confirmed cases, with 8,579, while Europe has the highest at 1,406,374. In terms of total deaths, Oceania also reports the fewest, with 122 fatalities, compared to Europe's 141,780. Oceania has the lowest number of recoveries at 7,313, whereas Europe leads with 537,696 recoveries, which is expected given the disparity in confirmed cases between the two regions. Testing efforts differ significantly, with Europe conducting the most tests at 17,013,488 and Africa the least at 618,154. 
+
+ Among the countries with the highest death tolls in each continent, the leading two in Africa are Algeria and Egypt; in Asia, they are Iran and China; in Europe, Italy and the United Kingdom; in North America, the USA and Canada; in Oceania, Australia and New Zealand; and in South America, Brazil and Ecuador. This data provides a comparative perspective on the pandemic's impact across continents and highlights key countries facing significant challenges in each region.
+
+The graph illustrating the total number of cases over time for the top 10 countries.
+
+```{r}
+knitr::include_graphics("C:/Users/NGOCNT/Pictures/Screenshots/Screenshot 2024-10-30 191312.png")
+
+```
+
+ Another graph displays the total number of infected cases, total tests conducted so far, and tests per million of the population for each country, created by this code. 
+
+```{r}
+
+knitr::include_graphics("C:/Users/NGOCNT/Pictures/Screenshots/Screenshot 2024-10-30 191320.png")
+
+```
+Additionally, a graph that summarizes the total, average, and median confirmed cases across continents is produced using this code.
+
+
+```{r}
+
+knitr::include_graphics("C:/Users/NGOCNT/Pictures/Screenshots/Screenshot 2024-10-30 191332.png")
+
+```
+...
+
+----
+
+*** 
