@@ -1,3 +1,5 @@
+# Online Retail Dataset
+
 # 📌 Executive Overview  
 
 This project analyses customer purchasing behaviour and revenue drivers for Marry’s online store using a combination of exploratory data analysis, visualisation, and predictive modelling. The core questions include: which product categories sell best and worst, how preferences differ across demographics, and how factors such as gender, age, quantity, and price shape revenue. Monthly sales patterns are examined to detect seasonal peaks, and a one-year revenue forecast is produced to support planning. Techniques used include bar and pie charts, time-series plots, boxplots, correlation analysis, linear regression, decision trees, seasonal naïve forecasting, and residual diagnostics. Together, these methods provide Marry with a clear picture of revenue performance, customer profiles, and satisfaction levels to inform future operational and marketing strategies.  
