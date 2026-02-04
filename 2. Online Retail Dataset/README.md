@@ -1,12 +1,12 @@
 # Online Retail Dataset
 
-# 📌 Executive Overview  
+# Executive Overview  
 
 This project analyses customer purchasing behaviour and revenue drivers for Marry’s online store using a combination of exploratory data analysis, visualisation, and predictive modelling. The core questions include: which product categories sell best and worst, how preferences differ across demographics, and how factors such as gender, age, quantity, and price shape revenue. Monthly sales patterns are examined to detect seasonal peaks, and a one-year revenue forecast is produced to support planning. Techniques used include bar and pie charts, time-series plots, boxplots, correlation analysis, linear regression, decision trees, seasonal naïve forecasting, and residual diagnostics. Together, these methods provide Marry with a clear picture of revenue performance, customer profiles, and satisfaction levels to inform future operational and marketing strategies.  
 
 ---
 
-## 🧾 Dataset & Key Variables  
+## Dataset & Key Variables  
 
 The dataset contains 13 fields: `customer_id`, `order_date`, `product_id`, `category_id`, `category_name`, `product_name`, `quantity`, `price`, `payment_method`, `city`, `review_score`, `gender`, and `age`. A statistical summary shows that customers typically purchase between 1 and 5 items per order, with an average of about 3. Prices range from \$10.72 to \$499.50, averaging around \$251.85. Review scores fall between 1 and 5, with a mean close to 4, although 201 customers did not leave feedback. Customer ages span from 18 to 75 years.  
 
@@ -14,7 +14,7 @@ A new variable, **Revenue** (`quantity × price`), was engineered and used throu
 
 ---
 
-## 🔍 Customer & Sales Insights  
+## Customer & Sales Insights  
 
 Payment behaviour was explored using bar charts of quarterly totals, revealing that **Cash on Delivery** is consistently the most popular method in every quarter. Age distribution was examined with a boxplot, showing customers are mainly between 32 and 61 years old, with a median age of 48 and no apparent outliers. This supports the reliability of the data and indicates a stable, mature customer base.  
 
@@ -41,7 +41,7 @@ Comparing the top 10 revenue-generating products by gender uncovered expected be
 
 ---
 
-## 🤖 Revenue Modelling & Forecasting  
+## Revenue Modelling & Forecasting  
 
 Correlation analysis confirmed that **quantity** has a strong positive relationship with revenue (0.61), which is expected given the formula for revenue. In contrast, encoded product, category, and gender variables show only weak relationships with revenue, and age has virtually no correlation, suggesting it does not materially drive spending.  
 
